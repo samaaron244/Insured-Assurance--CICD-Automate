@@ -1,15 +1,45 @@
-# Optional: uploads the full dependency graph to GitHub to improve the quality of Dependabot alerts
-name: Update dependency graph
-uses: advanced-security/maven-dependency-submission-action@571e99aab1855c2e71a1e230909601de18
+name: CI Pipeline - Build and Test
 
-name: scp ssh pipelines
-uses: cross-the-world/ssh-scp-ssh-pipelines@latest
-with:
-  host: ${{ secrets.HOST }}
-  user: ${{ secrets.USERNAME }}
-  pass: ${{ secrets.PASSWORD }}
-  port: ${{ secrets.PORT }}
-  source: /target/.war
-  target: /tmp
-  last_ssh: |
-    ls -lart /tmp
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      # Step 2: Set up Java (for a Java-based project, adjust if needed)
+      - name: Set up JDK 11
+        uses: actions/setup-java@v2
+        with:
+          java-version: '11'
+          distribution: 'adoptopenjdk'
+
+      # Step 3: Cache dependencies to speed up the process
+      - name: Cache Maven dependencies
+        uses: actions/cache@v2
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      # Step 4: Run Maven build and tests
+      - name: Run Maven build and tests
+        run: mvn clean install
+
+      # Step 5: Upload test results (optional, for tracking)
+      - name: Upload test results
+        uses: actions/upload-artifact@v2
+        with:
+          name: test-results
+          path: target/test-classes
